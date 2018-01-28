@@ -1,0 +1,93 @@
+---
+title: "Quality of Exercise -- Machine Learning Project"
+author: "Hyun-Joo Kim"
+date: "January 28, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#### Introcution
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+The goal of this project is to develop a classification model from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. 
+
+#### Data Reading and Cleaning
+
+Both training and testing dataset is loaded. Variables with more than 80% NA rate are eliminated. 
+
+```{r}
+trainingdata <- read.csv("G:/My Drive/2016 backups/Work/teaching/Data Science/Coursera/machine learning/pml-training.csv",na.strings=c("NA","#DIV/0!",""))
+testingdata <- read.csv("G:/My Drive/2016 backups/Work/teaching/Data Science/Coursera/machine learning/pml-testing (1).csv",na.strings=c("NA","#DIV/0!",""))
+
+trainingdata<-trainingdata[,colSums(is.na(trainingdata))/dim(trainingdata)[1]<0.2]
+testingdata<-testingdata[,colSums(is.na(testingdata))/dim(testingdata)[1]<0.2]
+```
+
+#### Data Exploring
+
+There is more class A exercise than the others. Class B, C, D ,E happened about the same number of the time. Contingency table between class and user name show no obvious pattern. There was no obvious pattern among total numbers and class.
+
+```{r}
+table(trainingdata$classe)
+prop.table(table(trainingdata$classe, trainingdata$user_name),2)
+pairs(data.frame(trainingdata$total_accel_belt,trainingdata$total_accel_arm,trainingdata$total_accel_dumbbell,trainingdata$total_accel_forearm, trainingdata$classe))
+
+```
+
+#### Model Building and Prediction Results
+
+The first to sixth variables are eliminated since they are not meaningful predictors.
+60% of the data are set as training data and 40% as testing set.
+
+```{r}
+library(caret)
+trainingdata<-trainingdata[, -c(1:6)]
+testingdata<-testingdata[, -c(1:6)]
+inTrain<-createDataPartition(y=trainingdata$classe, p=0.6, list=FALSE)
+training<-trainingdata[inTrain,]
+testing<-trainingdata[-inTrain,]
+```
+#### Pridiction based on random forest
+
+Overall accuracy is over 99%. Confusion Matrix shows most all of class is correctly specified with very few exceptions. Error rates approaches close to 0 with 10-20 trees and as the number of trees get larger the error rates do not change much.
+
+
+```{r}
+library(randomForest)
+controlRF<-trainControl(method="cv",10)
+ModFitrf<-randomForest(classe~., data=training, trControl=controlRF)
+predrf<-predict(ModFitrf, testing, method= "class")
+confusionMatrix(predrf, testing$classe)
+plot(ModFitrf)
+```
+
+#### Pridiction based on boosting
+Overall accuracy is over 98%. Confusion Matrix shows most all of class is correctly specified with few exceptions. 
+
+```{r}
+library(caret)
+ModFitbt<-train(classe~., data=training, method= "gbm", verbose=FALSE)
+predbt<-predict(ModFitbt, testing)
+confusionMatrix(predbt, testing$classe)
+#plot(ModFitbt)
+```
+
+#### Prediction on the validation data (testing data set aside) based on random forest
+
+```{r}
+npredrf<-predict(ModFitrf, testingdata, method= "class")
+npredrf
+```
+#### Prediction on the validation data (testing data set aside) based on random forest
+
+```{r}
+npredbt<-predict(ModFitbt, testingdata, method= "class")
+npredbt
+```
+
+```
